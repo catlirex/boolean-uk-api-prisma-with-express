@@ -5,7 +5,6 @@ const faker = require("faker");
 const boolean = [true, false];
 
 async function seed() {
-  // Prisma create query to seed models in database
   const petList = buildAnimalDatabase();
   const pets = await prisma.pet.createMany({
     data: petList,

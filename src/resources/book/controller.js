@@ -1,9 +1,8 @@
-const Prisma = require("@prisma/client");
 const prisma = require("../../utils/database");
 
-function errorHandling(e, res) {
-  console.log(e.message);
-  if (e.message.includes("invalid value"))
+function errorHandling(error, res) {
+  console.log(error.message);
+  if (error.message.includes("invalid value"))
     res.status(400).json({ ERROR: "Invalid value type found" });
   else
     res
@@ -250,4 +249,5 @@ module.exports = {
   patchOneBook,
   deleteOneBook,
   getBookOfAuthor,
+  errorHandling,
 };
