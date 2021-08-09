@@ -1,20 +1,17 @@
 const exp = require("constants");
 const express = require("express");
 const morgan = require("morgan");
-const { PrismaClient } = require("@prisma/client");
+
 const bookRouter = require("./resources/book/router");
+const petRouter = require("./resources/pet/router");
 
 const app = express();
-const prisma = new PrismaClient();
 
 app.use(morgan("dev"));
 app.use(express.json());
-app.use((req, res, next) => {
-  req.prisma = prisma;
-  next();
-});
 
 app.use("/books", bookRouter);
+app.use("/pets", petRouter);
 
 app.get("*", (req, res) => {
   res.json({ ok: "true" });

@@ -1,71 +1,136 @@
+const Prisma = require("@prisma/client");
+const prisma = require("../../utils/database");
+
+function errorHandling(e, res) {
+  console.log(e.message);
+  if (e.message.includes("invalid value"))
+    res.status(400).json({ ERROR: "Invalid value type found" });
+  else
+    res
+      .status(500)
+      .json({ ERROR: "Internal server error please try again later" });
+}
+
 async function getAllBook(req, res) {
-  const result = await req.prisma.book.findMany();
-  res.json(result);
+  try {
+    const result = await prisma.book.findMany();
+    res.json(result);
+  } catch (e) {
+    errorHandling(e, res);
+  }
 }
 
 async function postOneBook(req, res) {
   const newBook = req.body;
   const { title, type, author, topic, publicationdate } = newBook;
-  const validBook = bookObjChecker("new", newBook);
-  if (!validBook) return res.json({ ERROR: "BOOK info invalid" });
+  const validBook = newBookChecker(newBook);
+  if (!validBook) return res.status(400).json({ ERROR: "BOOK info invalid" });
 
-  const result = await req.prisma.book.create({
-    data: {
-      title,
-      type,
-      author,
-      topic,
-      publicationdate,
-    },
-  });
-  res.json(result);
+  try {
+    const result = await prisma.book.create({
+      data: {
+        title,
+        type,
+        author,
+        topic,
+        publicationdate,
+      },
+    });
+    res.json(result);
+  } catch (e) {
+    errorHandling(e, res);
+  }
 }
 
 async function getOneBook(req, res) {
   const id = Number(req.params.id);
-  const result = await req.prisma.book.findUnique({
-    where: {
-      id,
-    },
-  });
-  res.json(result);
+
+  try {
+    const result = await prisma.book.findUnique({
+      where: {
+        id,
+      },
+    });
+    if (result) res.json(result);
+    else res.json({ msg: "Item not found" });
+  } catch (e) {
+    errorHandling(e, res);
+  }
 }
 
 async function getBookByType(req, res) {
   const { type } = req.params;
   const { topic } = req.query;
-  if (!topic) {
-    const result = await req.prisma.book.findMany({
+  let result = null;
+
+  try {
+    if (!topic) result = await selectBookByTypeWithoutTopic(type);
+    if (topic) result = await selectBookByTypeWithTopic(type, topic);
+    if (result.length) res.json(result);
+    if (!result.length) res.json({ Msg: "No data found" });
+  } catch (e) {
+    errorHandling(e, res);
+  }
+}
+
+async function selectBookByTypeWithoutTopic(type) {
+  try {
+    const result = await prisma.book.findMany({
       where: {
         type,
       },
     });
-    res.json(result);
+    return result;
+  } catch (e) {
+    throw e;
   }
-  if (topic) {
-    const result = await req.prisma.book.findMany({
+}
+
+async function selectBookByTypeWithTopic(type, topic) {
+  try {
+    const result = await prisma.book.findMany({
       where: {
         type,
         topic,
       },
     });
-    res.json(result);
+
+    return result;
+  } catch (e) {
+    throw e;
   }
 }
 
 async function getBookOfAuthor(req, res) {
   const author = req.params.authorName;
   const { order } = req.query;
-  if (!order) {
-    const result = await req.prisma.book.findMany({
+  let result = null;
+  try {
+    if (!order) result = await selectBookOfAuthorWithoutOrder(author);
+    if (order) result = await selectBookOfAuthorWithOrder(author);
+    if (result.length) res.json(result);
+    if (!result.length) res.json({ Msg: "No data found" });
+  } catch (e) {
+    errorHandling(e, res);
+  }
+}
+
+async function selectBookOfAuthorWithoutOrder(author) {
+  try {
+    const result = await prisma.book.findMany({
       where: {
         author,
       },
     });
-    res.json(result);
+    return result;
+  } catch (e) {
+    throw e;
   }
-  if (order) {
-    const result = await req.prisma.book.findMany({
+}
+
+async function selectBookOfAuthorWithOrder(author) {
+  try {
+    const result = await prisma.book.findMany({
       where: {
         author,
       },
@@ -73,45 +138,74 @@ async function getBookOfAuthor(req, res) {
         publicationdate: "desc",
       },
     });
-    res.json(result);
+    return result;
+  } catch (e) {
+    throw e;
   }
 }
 
 async function deleteOneBook(req, res) {
   const id = Number(req.params.id);
-  const deleteBook = await req.prisma.book.delete({
-    where: {
-      id,
-    },
-  });
+  try {
+    const deleteBook = await prisma.book.delete({
+      where: {
+        id,
+      },
+    });
 
-  res.json({ DeletedItem: deleteBook });
+    res.json({ DeletedItem: deleteBook });
+  } catch (e) {
+    errorHandling(e, res);
+  }
 }
 
 async function patchOneBook(req, res) {
   const id = Number(req.params.id);
-  const toUpdateItem = await req.prisma.book.findUnique({
-    where: {
-      id,
-    },
-  });
-  if (!toUpdateItem) return res.json({ ERROR: `BOOK NOT FOUND bookId:${id}` });
-
   const toUpdateContent = req.body;
-  const contentValid = bookObjChecker("update", toUpdateContent);
-  if (!contentValid) return res.json({ ERROR: `Update info incorrect` });
+  try {
+    const itemExist = await itemChecker(id);
+    if (!itemExist) return res.json({ ERROR: `BOOK NOT FOUND bookId:${id}` });
 
-  const updatedBook = await req.prisma.book.update({
-    where: {
-      id,
-    },
-    data: toUpdateContent,
-  });
+    const contentValid = updateBookObjChecker(toUpdateContent);
+    if (!contentValid) return res.json({ ERROR: `Update info incorrect` });
 
-  res.json(updatedBook);
+    const updatedBook = await updateBookToServer(id, toUpdateContent);
+    res.json(updatedBook);
+  } catch (e) {
+    errorHandling(e, res);
+  }
 }
 
-function bookObjChecker(checkerType, bookObject) {
+async function itemChecker(id) {
+  try {
+    const toUpdateItem = await prisma.book.findUnique({
+      where: {
+        id,
+      },
+    });
+    if (toUpdateItem) return true;
+    if (!toUpdateItem) return false;
+  } catch (e) {
+    throw e;
+  }
+}
+
+async function updateBookToServer(id, toUpdateContent) {
+  try {
+    const updatedBook = await prisma.book.update({
+      where: {
+        id,
+      },
+      data: toUpdateContent,
+    });
+
+    return updatedBook;
+  } catch (e) {
+    throw e;
+  }
+}
+
+function newBookChecker(bookObject) {
   const newBookRequirements = [
     "title",
     "type",
@@ -119,6 +213,18 @@ function bookObjChecker(checkerType, bookObject) {
     "topic",
     "publicationdate",
   ];
+
+  const hasAllKeys = newBookRequirements.every((item) =>
+    bookObject.hasOwnProperty(item)
+  );
+
+  const lengthMatch =
+    !!Object.keys(bookObject).length === newBookRequirements.length;
+  if (hasAllKeys && lengthMatch) return true;
+  else return false;
+}
+
+function updateBookObjChecker(bookObject) {
   const updateBookRequirements = [
     "id",
     "title",
@@ -127,33 +233,13 @@ function bookObjChecker(checkerType, bookObject) {
     "topic",
     "publicationdate",
   ];
-  if (checkerType === "new") {
-    const hasAllKeys = newBookRequirements.every((item) =>
-      bookObject.hasOwnProperty(item)
-    );
-    if (
-      hasAllKeys &&
-      Object.keys(bookObject).length === newBookRequirements.length
-    )
-      return true;
-    else return false;
-  } else if (checkerType === "update") {
-    for (const key of Object.keys(bookObject)) {
-      const keyChecker = updateBookRequirements.includes(key);
-      if (!keyChecker) return false;
-    }
 
-    return true;
-    // const hasAllKeys = UpdateBookRequirements.every((item) =>
-    //   bookObject.hasOwnProperty(item)
-    // );
-    // if (
-    //   hasAllKeys &&
-    //   Object.keys(bookObject).length === UpdateBookRequirements.length
-    // )
-    //   return true;
-    // else return false;
-  } else return false;
+  for (const key of Object.keys(bookObject)) {
+    const keyChecker = updateBookRequirements.includes(key);
+    if (!keyChecker) return false;
+  }
+
+  return true;
 }
 
 module.exports = {

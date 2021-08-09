@@ -21,3 +21,14 @@ model Book {
   publicationdate DateTime
 
 }
+
+model Pet {
+
+  id        Int     @id @default(autoincrement())
+  name      String
+  age       Int
+  type      String
+  breed     String
+  microchip Boolean
+
+}
