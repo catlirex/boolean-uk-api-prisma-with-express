@@ -5,9 +5,9 @@ async function getAllPets(req, res) {
   const { microchip } = req.query;
   let result = null;
   try {
-    if (!microchip) result = await selectAllPet();
+    if (!microchip) result = await selectPets();
     if (microchip)
-      result = await selectAllPet({ microchip: booleanParse(microchip) });
+      result = await selectPets({ microchip: booleanParse(microchip) });
     if (result.length) res.json(result);
     if (!result.length) res.json({ Msg: "No data found" });
   } catch (e) {
@@ -15,7 +15,7 @@ async function getAllPets(req, res) {
   }
 }
 
-async function selectAllPet(filterValue) {
+async function selectPets(filterValue) {
   try {
     const result = await prisma.pet.findMany({
       where: filterValue,
@@ -49,15 +49,15 @@ async function getPetByType(req, res) {
   const { breed, microchip } = req.query;
   let result = null;
 
-  if (!breed && !microchip) result = await selectPetByType({ type });
-  if (breed && !microchip) result = await selectPetByType({ type, breed });
+  if (!breed && !microchip) result = await selectPets({ type });
+  if (breed && !microchip) result = await selectPets({ type, breed });
   if (!breed && microchip)
-    result = await selectPetByType({
+    result = await selectPets({
       type,
       microchip: booleanParse(microchip),
     });
   if (breed && microchip)
-    result = await selectPetByType({
+    result = await selectPets({
       type,
       breed,
       microchip: booleanParse(microchip),
@@ -66,31 +66,20 @@ async function getPetByType(req, res) {
   res.json(result);
 }
 
-async function selectPetByType(filterValue) {
-  try {
-    const result = await prisma.pet.findMany({
-      where: filterValue,
-    });
-    return result;
-  } catch (e) {
-    throw e;
-  }
-}
-
 async function getOnePet(req, res) {
   const petId = Number(req.params.id);
   try {
-    const result = await selectOnePet(petId);
+    const result = await selectOnePet({ id: petId });
     res.json(result);
   } catch (e) {
     errorHandling(e);
   }
 }
 
-async function selectOnePet(id) {
+async function selectOnePet(filterContent) {
   try {
     const result = await prisma.pet.findMany({
-      where: { id },
+      where: filterContent,
     });
     return result;
   } catch (e) {
@@ -167,7 +156,7 @@ async function patchOnePet(req, res) {
 }
 
 async function idExistChecker(id) {
-  const targetItem = await selectOnePet(id);
+  const targetItem = await selectOnePet({ id });
   if (targetItem) return true;
   else return false;
 }

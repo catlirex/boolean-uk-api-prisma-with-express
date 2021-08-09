@@ -63,8 +63,8 @@ async function getBookByType(req, res) {
   let result = null;
 
   try {
-    if (!topic) result = await selectBookByTypeWithoutTopic(type);
-    if (topic) result = await selectBookByTypeWithTopic(type, topic);
+    if (!topic) result = await selectBooks({ type });
+    if (topic) result = await selectBooks({ type, topic });
     if (result.length) res.json(result);
     if (!result.length) res.json({ Msg: "No data found" });
   } catch (e) {
@@ -72,28 +72,12 @@ async function getBookByType(req, res) {
   }
 }
 
-async function selectBookByTypeWithoutTopic(type) {
+async function selectBooks(filterContent, orderContent) {
   try {
     const result = await prisma.book.findMany({
-      where: {
-        type,
-      },
+      where: filterContent,
+      orderBy: orderContent,
     });
-    return result;
-  } catch (e) {
-    throw e;
-  }
-}
-
-async function selectBookByTypeWithTopic(type, topic) {
-  try {
-    const result = await prisma.book.findMany({
-      where: {
-        type,
-        topic,
-      },
-    });
-
     return result;
   } catch (e) {
     throw e;
@@ -105,41 +89,13 @@ async function getBookOfAuthor(req, res) {
   const { order } = req.query;
   let result = null;
   try {
-    if (!order) result = await selectBookOfAuthorWithoutOrder(author);
-    if (order) result = await selectBookOfAuthorWithOrder(author);
+    if (!order) result = await selectBooks({ author });
+    if (order)
+      result = await selectBooks({ author }, { publicationdate: "desc" });
     if (result.length) res.json(result);
     if (!result.length) res.json({ Msg: "No data found" });
   } catch (e) {
     errorHandling(e, res);
-  }
-}
-
-async function selectBookOfAuthorWithoutOrder(author) {
-  try {
-    const result = await prisma.book.findMany({
-      where: {
-        author,
-      },
-    });
-    return result;
-  } catch (e) {
-    throw e;
-  }
-}
-
-async function selectBookOfAuthorWithOrder(author) {
-  try {
-    const result = await prisma.book.findMany({
-      where: {
-        author,
-      },
-      orderBy: {
-        publicationdate: "desc",
-      },
-    });
-    return result;
-  } catch (e) {
-    throw e;
   }
 }
 
